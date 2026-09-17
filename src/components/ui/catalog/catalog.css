@@ -19,7 +19,7 @@
 .catalog-empty {
     text-align: center;
     padding: 3rem;
-    background-color: var(--card-bg, #1ae3e3);
+    background-color: var(--card-bg, #282B2B);
     border-radius: 10px;
     font-size: 1.1rem;
     color: var(--text-light, #F4F5F5);

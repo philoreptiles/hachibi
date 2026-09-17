@@ -3,6 +3,7 @@ import { escapeHTML, safeImageUrl } from '../../../utils/security.js';
 import { siteConfig } from '../../../site-config.js';
 import { iconMarkup } from '../../../utils/icons.js';
 import { toggleFavorito, esFavorito } from '../../../utils/favorites.js';
+import { getEjemplares } from '../../../supabase-config.js';
 // CAMBIO DE SEGURIDAD: todo campo que viene de la base de datos (especie,
 // genetica, sexo, estatus, imagen_url, id...) se inserta mas abajo dentro
 // de `innerHTML`. Antes se interpolaba sin escapar, lo que permitia XSS
@@ -12,14 +13,17 @@ import { toggleFavorito, esFavorito } from '../../../utils/favorites.js';
 let currentList = [];
 let currentIndex = 0;
 let keyListenerBound = false;
-let touchListenersBound = false;
-let touchStartX = 0;
-let touchStartY = 0;
+
+// Lista COMPLETA de ejemplares disponibles (sin filtros ni paginación).
+// Se carga una sola vez al abrir el modal y se usa para la sección
+// "Ejemplares disponibles" de la parte inferior.
+let allAvailableEjemplares = [];
+let allAvailableLoaded = false;
 
 /**
  * Genera la URL de WhatsApp y el texto del botón según el estatus del ejemplar
  */
-function getWhatsAppDetails(ejemplar) {
+export function getWhatsAppDetails(ejemplar) {
     const especie = ejemplar.especie || 'ejemplar';
     const id = ejemplar.id ? `#${ejemplar.id}` : 'sin ID';
     const estatus = (ejemplar.estatus || '').toLowerCase().trim();
@@ -51,23 +55,46 @@ function getWhatsAppDetails(ejemplar) {
             btnText = 'Consultar por WhatsApp';
     }
 
-    // CAMBIO: antes este numero estaba hardcodeado aqui y era DISTINTO al
-    // que usa header.js (bug real de copy-paste). Ahora ambos toman el
-    // mismo numero desde site-config.js.
     const url = `https://wa.me/${siteConfig.whatsappNumber}?text=${encodeURIComponent(mensaje)}`;
     return { url, btnText };
 }
 
 /**
- * Filtra los ejemplares con estatus "Disponible", excluyendo el ejemplar actualmente abierto
+ * Filtra los ejemplares con estatus "Disponible", excluyendo el ejemplar actualmente abierto.
+ * Ahora trabaja sobre la lista COMPLETA de disponibles (allAvailableEjemplares),
+ * no sobre currentList.
  */
-function getAvailableEjemplares(todosLosEjemplares, ejemplarActual) {
-    return todosLosEjemplares.filter(ejemplar => 
+function getAvailableEjemplares(ejemplarActual) {
+    return allAvailableEjemplares.filter(ejemplar =>
         ejemplar &&
-        ejemplar.estatus &&
-        ejemplar.estatus.toLowerCase().trim() === 'disponible' && 
         ejemplar.id !== ejemplarActual.id
     );
+}
+
+/**
+ * Carga (una sola vez) TODOS los ejemplares con estatus "Disponible"
+ * desde Supabase, sin aplicar filtros ni paginación.
+ */
+async function cargarTodosLosDisponibles() {
+    if (allAvailableLoaded) return;
+
+    try {
+        // Pedimos un límite alto para traer todos los disponibles.
+        // Si tienes muchísimos ejemplares (>1000) considera paginar
+        // esta carga, pero para un catálogo de reptiles es más que suficiente.
+        const resultado = await getEjemplares({ page: 1, limit: 500 }) || [];
+
+        allAvailableEjemplares = resultado.filter(e =>
+            e &&
+            e.estatus &&
+            e.estatus.toLowerCase().trim() === 'disponible'
+        );
+
+        allAvailableLoaded = true;
+    } catch (error) {
+        console.error('Error al cargar todos los ejemplares disponibles:', error);
+        allAvailableEjemplares = [];
+    }
 }
 
 /**
@@ -95,31 +122,6 @@ export function initModalEvents() {
         window.addEventListener('keydown', handleKeyPress);
         keyListenerBound = true;
     }
-
-    // Swipe horizontal para navegar en móvil (equivalente táctil de las
-    // flechas de teclado). Se compara contra un umbral mínimo en X y se
-    // exige que el movimiento sea más horizontal que vertical, para no
-    // disparar una navegación cuando el visitante solo está haciendo
-    // scroll vertical dentro de la ficha (el modal-container puede
-    // scrollear en móvil, ver overflow-y: auto en modal.css).
-    if (!touchListenersBound) {
-        modalElement.addEventListener('touchstart', (e) => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
-        }, { passive: true });
-
-        modalElement.addEventListener('touchend', (e) => {
-            const deltaX = e.changedTouches[0].screenX - touchStartX;
-            const deltaY = e.changedTouches[0].screenY - touchStartY;
-
-            const UMBRAL_MINIMO = 50;
-            if (Math.abs(deltaX) < UMBRAL_MINIMO || Math.abs(deltaX) < Math.abs(deltaY)) return;
-
-            navigateModal(deltaX > 0 ? 'prev' : 'next');
-        }, { passive: true });
-
-        touchListenersBound = true;
-    }
 }
 
 /**
@@ -141,7 +143,7 @@ function handleKeyPress(e) {
 /**
  * Abre la modal con el ejemplar seleccionado y el contexto del catálogo
  */
-export function openModal(ejemplar, todosLosEjemplares = [], indexActual = 0) {
+export async function openModal(ejemplar, todosLosEjemplares = [], indexActual = 0) {
     const modalElement = document.getElementById('modal-overlay');
     if (!modalElement) return;
 
@@ -149,6 +151,11 @@ export function openModal(ejemplar, todosLosEjemplares = [], indexActual = 0) {
     currentIndex = indexActual >= 0 ? indexActual : 0;
 
     initModalEvents();
+
+    // Cargamos TODOS los disponibles antes de renderizar, para que la
+    // sección inferior aparezca completa desde el primer render.
+    await cargarTodosLosDisponibles();
+
     renderModalContent(currentList[currentIndex]);
 
     modalElement.classList.add('is-open');
@@ -165,7 +172,6 @@ export function closeModal() {
     modalElement.classList.remove('is-open');
     document.body.style.overflow = '';
 }
-
 
 /**
  * Actualiza el contenido con transición de opacidad y leve desplazamiento
@@ -221,36 +227,36 @@ function renderModalContent(ejemplar = {}) {
     const estatusNormalizado = (ejemplar.estatus || 'Disponible').trim().toLowerCase();
     const idEjemplar = escapeHTML(ejemplar.id ? `${ejemplar.id}` : 'N/A');
     const anio = escapeHTML(ejemplar.nacimiento ? String(ejemplar.nacimiento).substring(0, 4) : 'N/A');
-    
-    const precioFormat = new Intl.NumberFormat('es-MX', { 
-        style: 'currency', 
+
+    const precioFormat = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
         currency: 'MXN',
         minimumFractionDigits: 0
     }).format(Number(ejemplar.precio) || 0);
 
     const isDisponible = estatusNormalizado === 'disponible';
-    
-    // Generar enlace y texto dinámicos según el estatus
+
     const { url: linkWhatsApp, btnText } = getWhatsAppDetails(ejemplar);
 
     const statusClass = escapeHTML(`status-${estatusNormalizado.replace(/\s+/g, '-')}`);
     const btnClass = isDisponible ? 'btn-available' : 'btn-unavailable';
 
-    // Filtrar ejemplares disponibles para la sección inferior
-    const ejemplaresDisponibles = getAvailableEjemplares(currentList, ejemplar);
-    
+    // Sección inferior: TODOS los disponibles, sin excluir los que no
+    // están en currentList. Al hacer clic se abre un modal "aislado"
+    // con ese ejemplar (no navega dentro de currentList).
+    const ejemplaresDisponibles = getAvailableEjemplares(ejemplar);
+
     let otrosEjemplaresHTML = '';
     if (ejemplaresDisponibles.length > 0) {
         otrosEjemplaresHTML = `
             <div class="modal-others-grid">
                 ${ejemplaresDisponibles.map((item) => {
-                    const indexEnListaOriginal = currentList.findIndex(e => e.id === item.id);
                     const itemImg = safeImageUrl(item.imagen_url);
                     const itemEspecie = escapeHTML(item.especie || 'Reptil');
                     const itemPrecio = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(Number(item.precio) || 0);
 
                     return `
-                        <div class="other-card" data-index="${indexEnListaOriginal}">
+                        <div class="other-card" data-id="${escapeHTML(String(item.id))}">
                             <div class="other-card-img-wrapper">
                                 <img src="${itemImg}" alt="${itemEspecie}" />
                             </div>
@@ -341,7 +347,7 @@ function renderModalContent(ejemplar = {}) {
                     ${btnText}
                 </a>
 
-                                <!-- Barra de Navegación -->
+                <!-- Barra de Navegación -->
                 <div class="modal-nav-bar">
                     <button type="button" class="modal-nav-btn" id="modal-prev-btn" aria-label="Anterior">
                         ‹ Anterior
@@ -351,7 +357,7 @@ function renderModalContent(ejemplar = {}) {
                         Siguiente ›
                     </button>
                 </div>
-                
+
             </div>
         </div>
 
@@ -390,14 +396,27 @@ function renderModalContent(ejemplar = {}) {
     if (prevBtn) prevBtn.onclick = () => navigateModal('prev');
     if (nextBtn) nextBtn.onclick = () => navigateModal('next');
 
-    // Eventos para seleccionar otros ejemplares disponibles
+    // Eventos para seleccionar otros ejemplares disponibles.
+    // Ahora se busca el ejemplar por ID en TODA la lista de disponibles.
+    // Si no está en currentList, se abre en modo "aislado" (solo ese ejemplar).
     const otherCards = content.querySelectorAll('.other-card');
     otherCards.forEach(card => {
         card.onclick = () => {
-            const idx = parseInt(card.dataset.index, 10);
-            if (!isNaN(idx) && idx !== currentIndex) {
-                currentIndex = idx;
+            const id = card.dataset.id;
+            const item = allAvailableEjemplares.find(e => String(e.id) === String(id));
+            if (!item) return;
+
+            const idxEnCurrent = currentList.findIndex(e => String(e.id) === String(id));
+
+            if (idxEnCurrent >= 0) {
+                // Está en la lista actual: navegamos normal
+                currentIndex = idxEnCurrent;
                 updateModalContent(currentList[currentIndex]);
+            } else {
+                // No está en la lista filtrada: abrimos "aislado"
+                currentList = [item];
+                currentIndex = 0;
+                updateModalContent(item);
             }
         };
     });
@@ -440,9 +459,6 @@ async function compartirEjemplar(ejemplar, boton) {
         await navigator.clipboard.writeText(url);
         mostrarFeedbackBoton(boton, '¡Copiado!');
     } catch (error) {
-        // El visitante canceló el share sheet (AbortError) o el
-        // portapapeles no está disponible -- ninguno de los dos casos
-        // amerita interrumpir con un error visible.
         if (error?.name !== 'AbortError') {
             console.error('Error al compartir:', error);
         }

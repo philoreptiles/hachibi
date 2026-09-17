@@ -25,6 +25,10 @@
 
 export const siteConfig = {
     brandName: 'Reptiles Durán',
+    // Frase corta debajo del nombre de marca en el hero del catálogo
+    // público (1 línea, sin punto final). Déjala en '' si no quieres
+    // hero con tagline -- igual se muestra el nombre solo.
+    tagline: '',
     // El "id" que le corresponde a este criador en la tabla
     // public.criadores del proyecto de Supabase compartido (ver
     // sql/esquema_inicial_proyecto_nuevo.sql). Filtra qué
@@ -52,7 +56,7 @@ export const siteConfig = {
     // Número de WhatsApp en formato internacional SIN "+" ni espacios,
     // ej. 521XXXXXXXXXX para México.
     whatsappNumber: '5210000000000',
-    location: 'Xalapa, Veracruz, México',
+    location: 'Veracruz, México',
     footerCopyrightYear: new Date().getFullYear(),
 
     // Paleta semántica del cliente. Los tonos hover/oscuros derivados
@@ -60,8 +64,8 @@ export const siteConfig = {
     // estos 3 colores con color-mix() en CSS -- no hace falta darlos
     // a mano.
     colors: {
-        primary: '#d789d7',
-        secondary: '#c593a2',
+        primary: '#ee296e',
+        secondary: '#b37a7a',
         background: '#1E2020',
     },
 

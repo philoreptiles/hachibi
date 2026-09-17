@@ -18,6 +18,20 @@ let isLoadingMore = false;
 let containerElement = null;
 let gridElement = null;
 
+// Observer único, reutilizado en toda la vida de la página (carga
+// inicial + cada "Cargar más") -- mismo patrón que initScrollReveal()
+// en nosotros.js. Cada card se deja de observar en cuanto se revela
+// una vez (obs.unobserve): es una entrada de una sola vez, no algo
+// que deba repetirse si el visitante sube y baja por el catálogo.
+const cardRevealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            cardRevealObserver.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.15 });
+
 export async function renderCatalog(containerId, filters = {}) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -78,7 +92,7 @@ export async function renderCatalog(containerId, filters = {}) {
         container.innerHTML = `
             <div class="catalog-error">
                 <span class="error-icon">${iconMarkup('alertTriangle')}</span>
-                <p>Ocurrió un error al cargar la información.</p>
+                <p>Se nos enredó la conexión. Intenta de nuevo en un momento.</p>
                 <button type="button" class="btn-clear-filters" id="btn-catalog-retry">
                     ${iconMarkup('refreshCw', 'btn-icon')}
                     Reintentar
@@ -115,12 +129,14 @@ function appendCards(ejemplares, startIndex) {
         const card = createCardElement(ejemplar);
         card.dataset.index = startIndex + i;
         // Entrada en cascada: cada card de este lote se retrasa un
-        // poco más que la anterior. Se limita el índice usado para el
-        // cálculo (no el índice real) para que "Cargar más" con muchos
-        // resultados no deje la última card esperando segundos enteros.
-        card.classList.add('card--enter');
-        card.style.animationDelay = `${Math.min(i, 11) * 0.05}s`;
+        // poco más que la anterior CUANDO SE VUELVE VISIBLE (no al
+        // insertarse). Se limita el índice usado para el cálculo (no
+        // el índice real) para que "Cargar más" con muchos resultados
+        // no deje la última card esperando segundos enteros.
+        card.classList.add('reveal-on-scroll');
+        card.style.transitionDelay = `${Math.min(i, 11) * 0.05}s`;
         gridElement.appendChild(card);
+        cardRevealObserver.observe(card);
     });
 }
 

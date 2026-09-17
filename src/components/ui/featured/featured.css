@@ -1,0 +1,224 @@
+/* ============================================================
+   FEATURED — Hero Banner
+   La imagen del ejemplar ocupa todo el fondo de la tarjeta con un
+   degradado oscuro encima para garantizar legibilidad. El contenido
+   (especie, genética, precio, CTA) vive en la parte inferior.
+   ============================================================ */
+
+.featured-section {
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* ---------- Tarjeta principal ---------- */
+.featured-hero {
+    position: relative;
+    width: 100%;
+    min-height: 360px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    isolation: isolate; /* contiene el z-index interno */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.featured-hero:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.55);
+}
+
+/* Imagen de fondo */
+.featured-hero-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    z-index: -2;
+    transition: transform 0.6s ease;
+}
+
+.featured-hero:hover .featured-hero-bg {
+    transform: scale(1.05);
+}
+
+/* Overlay degradado: oscuro abajo, transparente arriba */
+.featured-hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.94) 0%,
+        rgba(0, 0, 0, 0.65) 40%,
+        rgba(0, 0, 0, 0.15) 75%,
+        rgba(0, 0, 0, 0) 100%
+    );
+    pointer-events: none;
+}
+
+/* ---------- Badges superiores ---------- */
+.featured-hero-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(10, 10, 10, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.featured-hero-badge svg {
+    width: 14px;
+    height: 14px;
+}
+
+.featured-hero-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    color: #ffffff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* Colores de estatus (los que me pasaste) */
+.status-disponible { background-color: var(--status-disponible, #2E7D32); }
+.status-apartado   { background-color: var(--primary-color); }
+.status-vendido    { background-color: var(--status-vendido, #D32F2F); }
+.status-holdback   { background-color: var(--moonstone-color); }
+
+/* ---------- Contenido inferior ---------- */
+.featured-hero-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.featured-hero-species {
+    display: block;
+    font-family: var(--font-primary);
+    font-style: italic;
+    font-size: 0.9rem;
+    opacity: 0.85;
+    color: #ffffff;
+}
+
+.featured-hero-genetics {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin: 0.1rem 0 0.3rem 0;
+    line-height: 1.1;
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.featured-hero-details {
+    font-size: 0.9rem;
+    opacity: 0.82;
+    margin: 0 0 0.9rem 0;
+    color: #ffffff;
+}
+
+/* ---------- Fila inferior: precio + botón ---------- */
+.featured-hero-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.featured-hero-price {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    line-height: 1;
+}
+
+.featured-hero-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: #25D366;
+    color: #ffffff;
+    padding: 0.7rem 1.2rem;
+    border-radius: 10px;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.featured-hero-btn:hover {
+    background: #1EBE5A;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(37, 211, 102, 0.5);
+}
+
+.featured-hero-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* ---------- Desktop ---------- */
+@media (min-width: 768px) {
+    .featured-section {
+        padding: 1.5rem;
+    }
+
+    .featured-hero {
+        min-height: 420px;
+        border-radius: 22px;
+    }
+
+    .featured-hero-content {
+        padding: 2.5rem;
+    }
+
+    .featured-hero-genetics {
+        font-size: 2.5rem;
+        max-width: 70%;
+    }
+
+    .featured-hero-details {
+        font-size: 1rem;
+    }
+
+    .featured-hero-price {
+        font-size: 2rem;
+    }
+
+    .featured-hero-btn {
+        padding: 0.85rem 1.6rem;
+        font-size: 1rem;
+    }
+}

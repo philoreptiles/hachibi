@@ -21,31 +21,30 @@
     box-sizing: border-box;
 }
 
-/* Entrada escalonada: catalog.js le agrega esta clase + un
-   animation-delay distinto a cada card cuando se pintan (carga
-   inicial o "Cargar más"), para que aparezcan en cascada en vez de
-   todas de golpe. Se retira sola al terminar (no hace falta JS extra
-   para limpiarla: "both" deja el estado final y no vuelve a disparar
-   porque la animación no está en un trigger de :hover ni de clase
-   toggleable). */
-@keyframes cardFadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(14px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+/* Entrada en cascada AL HACER SCROLL: catalog.js observa cada card con
+   IntersectionObserver y le agrega ".is-visible" la primera vez que
+   entra al viewport (mismo patrón que .reveal-on-scroll en
+   nosotros.css). Antes la animación arrancaba apenas se insertaba la
+   card en el DOM (vía @keyframes + animation-delay) -- para las cards
+   fuera de la pantalla inicial (fila 3, 4...), la animación ya había
+   terminado de sobra antes de que el visitante llegara a verlas con
+   scroll, así que el efecto solo se notaba en las primeras 2 filas. */
+.card.reveal-on-scroll {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.card--enter {
-    animation: cardFadeInUp 0.45s cubic-bezier(0.4, 0, 0.2, 1) both;
+.card.reveal-on-scroll.is-visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .card--enter {
-        animation: none;
+    .card.reveal-on-scroll {
+        opacity: 1;
+        transform: none;
+        transition: none;
     }
 }
 

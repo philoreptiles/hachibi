@@ -2,8 +2,10 @@
 @import './base/typography.css';
 @import './layouts/layout.css';
 @import '../components/common/header/header.css';
+@import '../components/common/hero/hero.css';
 @import '../components/common/footer/footer.css';
 @import '../components/common/card/card.css';
+@import '../components/ui/featured/featured.css';
 @import '../components/ui/filters/filters.css';
 @import '../components/ui/catalog/catalog.css';
 @import '../components/ui/modal/modal.css';

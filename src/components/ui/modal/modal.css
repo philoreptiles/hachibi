@@ -279,10 +279,10 @@
 }
 
 .modal-genetics-badge {
-    background-color: var(--moonstone-color); /* Moonstone */
-    color: #282B2B;
-    padding: 2px 8px;
-    border-radius: 8px;
+    background-color: transparent; /* Quita el fondo del rectángulo */
+    color: var(--primary-color); /* Hereda el color del texto del contenedor padre, o puedes poner un color específico como #fff o #000 */
+    padding: 0; /* Opcional: quita el espacio interno para que no parezca un botón */
+    border-radius: 0; /* Opcional: quita las esquinas redondeadas */
     font-size: 1.25rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -581,7 +581,7 @@
     }
 
     .modal-genetics-badge {
-        padding: 4px 12px;
+        padding: 4px 0px;
         font-size: 2rem;
     }
 

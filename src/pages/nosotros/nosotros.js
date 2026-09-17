@@ -23,11 +23,11 @@ export async function renderNosotrosPage() {
             <div class="section-container">
                 <div class="hero-card reveal-on-scroll">
                     <span class="hero-subtitle">Criadero Especializado</span>
-                    <h1>Sobre Escama y Colmillo</h1>
+                    <h1>Sobre Reptiles Durán</h1>
                     <p class="nosotros-description">
                         Somos un criadero especializado en el género <strong>Boa</strong>, ubicado en Xalapa, Veracruz. 
-                        Con más de 10 años de experiencia, nos dedicamos a la reproducción ética y conservación de serpientes 
-                        de cascabel, ofreciendo ejemplares de alta calidad genética y sanidad.
+                        Con más de 10 años de experiencia, nos dedicamos a la reproducción ética y conservación de Boa sigma e imperator, 
+                        ofreciendo ejemplares de alta calidad genética y sanidad.
                     </p>
                 </div>
             </div>
