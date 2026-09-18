@@ -44,7 +44,7 @@ $contenidoHtml = @'
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Estadísticas - Escama y Colmillo</title>
+    <title>Estadísticas - Reptiles Durán</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <!--
         Se reutiliza admin.css completo (header, ".premium-card",
@@ -70,7 +70,7 @@ $contenidoHtml = @'
     <header class="header">
         <div class="header-container">
             <a href="/index.html" class="logo-link">
-                <span class="brand-title">ESCAMA Y COLMILLO</span>
+                <span class="brand-title">Reptiles Durán</span>
             </a>
             <nav class="nav-menu">
                 <a href="/src/pages/admin/admin.html" class="nav-link">Inventario</a>
@@ -83,7 +83,7 @@ $contenidoHtml = @'
     <main class="admin-main">
 
         <div class="dashboard-header">
-            <h1>Estadísticas del Negocio</h1>
+            <h1>Estadísticas del negocio</h1>
             <p>Un vistazo rápido a tu inventario y tus ventas.</p>
         </div>
 

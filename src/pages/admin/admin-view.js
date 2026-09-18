@@ -1851,6 +1851,23 @@ function renderTableRows(ejemplares, targetTbody) {
             deleteEjemplar(button.getAttribute('data-id'), button.getAttribute('data-especie'));
         });
     });
+
+    // CAMBIO (fila coloreada al hacer clic): togglea .row-selected sobre
+    // el <tr> en el que se hizo clic -- el color real (rosa tenue,
+    // mezclado con --primary-color del cliente) vive en admin.css. Los
+    // botones de acción (editar/liberar/eliminar) ya llaman
+    // event.stopPropagation() en sus propios listeners de arriba, así
+    // que un clic en esos íconos NO llega hasta aquí y no selecciona la
+    // fila por accidente -- solo un clic en el resto de la fila la
+    // colorea. No se excluyen otras filas entre sí a propósito: se
+    // pueden marcar varias filas sueltas a la vez (por ejemplo, para
+    // tenerlas ubicadas visualmente mientras se revisan una por una),
+    // igual que resaltar con un marcador sobre una tabla en papel.
+    targetTbody.querySelectorAll('tr').forEach(tr => {
+        tr.addEventListener('click', () => {
+            tr.classList.toggle('row-selected');
+        });
+    });
 }
 
 

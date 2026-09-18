@@ -489,14 +489,29 @@ input[type="number"] {
 
 /* ==================== TABLAS ====================
    Ver nota de excepción "1 columna" al inicio del archivo: la tabla
-   conserva scroll horizontal en vez de apilarse en el base móvil. */
+   conserva scroll horizontal en vez de apilarse en el base móvil.
+
+   CAMBIO (contenedor con altura máxima): antes .table-container-premium
+   solo tenía overflow-x, así que con "Ver todos" (más de 5 filas) la
+   tabla crecía tan alta que su propia barra de scroll horizontal
+   quedaba dibujada hasta el final físico del contenedor -- muy por
+   debajo de lo que se alcanza a ver en pantalla, imposible de agarrar
+   sin primero bajar hasta el fondo. Con max-height + overflow-y, el
+   contenedor deja de crecer sin límite: su scroll (horizontal Y
+   vertical) siempre queda pegado al bloque visible, sin importar
+   cuántas filas haya. Como consecuencia natural de agregar scroll
+   vertical, el thead ahora es sticky (top: 0) para que los encabezados
+   de columna no desaparezcan al bajar dentro de la tabla. */
 .table-container-premium {
     width: 100%;
+    max-height: 60vh;
     overflow-x: auto;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     border: 1px solid var(--border-color);
     border-radius: 10px;
     background: #181A1A;
+    position: relative;
 }
 
 .table-premium {
@@ -517,6 +532,9 @@ input[type="number"] {
     letter-spacing: 0.6px;
     border-bottom: 1px solid var(--border-color);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .table-premium td {
@@ -525,6 +543,54 @@ input[type="number"] {
     vertical-align: middle;
     color: var(--text-light);
     white-space: nowrap;
+}
+
+/* CAMBIO (columna ID fija al hacer scroll horizontal): sticky left
+   sobre la primera columna para que el ID del ejemplar siga visible
+   sin importar cuánto se deslice la tabla hacia la derecha. Necesita
+   un background SÓLIDO explícito (no lo hereda del <td> normal,
+   transparente) porque un elemento sticky se queda dibujado ENCIMA
+   del resto de columnas al desplazarse -- sin fondo opaco se vería el
+   texto de las demás celdas transparentándose debajo. z-index más
+   alto que el resto de <td> (que no lo necesitan, viven en flujo
+   normal) pero más bajo que el encabezado (también sticky, top+left
+   a la vez en esta columna, por eso necesita ganarle a todo lo demás).
+   El border-right marca visualmente dónde termina la columna fija. */
+.table-premium td[data-col="id"] {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #181A1A;
+    border-right: 1px solid var(--border-color);
+}
+
+.table-premium th[data-col="id"] {
+    left: 0;
+    z-index: 3;
+    border-right: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sticky);
+}
+
+/* CAMBIO (fila coloreada al hacer clic): .row-selected la agrega/quita
+   admin-view.js en cada <tr> al hacer clic (ver renderTableRows()).
+   color-mix() con --primary-color en vez de un rosa fijo para que el
+   tono siga la paleta de marca de cada criador (mismo patrón que ya
+   usa main.css para el gradiente de fondo del body), mezclado sobre
+   el fondo oscuro de la tabla para quedar "tenue" y no un rosa plano
+   saturado. Se repite el mismo fondo explícito sobre la celda de ID
+   fija -- si no, su background sólido (#181A1A de la regla de arriba)
+   taparía el color de selección de esa columna en particular. */
+.table-premium tbody tr.row-selected {
+    background-color: color-mix(in srgb, var(--primary-color) 15%, #181A1A);
+    cursor: pointer;
+}
+
+.table-premium tbody tr.row-selected td[data-col="id"] {
+    background-color: color-mix(in srgb, var(--primary-color) 15%, #181A1A);
+}
+
+.table-premium tbody tr {
+    cursor: pointer;
 }
 
 .table-thumb {
@@ -1443,6 +1509,21 @@ input[type="number"] {
 
     .table-premium tbody tr:hover {
         background: #232626;
+    }
+
+    /* Misma razón que .row-selected td[data-col="id"] arriba: el
+       fondo sólido de la columna fija tapa el :hover si no se
+       repite explícitamente sobre ella. */
+    .table-premium tbody tr:hover td[data-col="id"] {
+        background: #232626;
+    }
+
+    .table-premium tbody tr.row-selected:hover td[data-col="id"] {
+        background-color: color-mix(in srgb, var(--primary-color) 20%, #181A1A);
+    }
+
+    .table-premium tbody tr.row-selected:hover {
+        background-color: color-mix(in srgb, var(--primary-color) 20%, #181A1A);
     }
 
     .table-thumb {

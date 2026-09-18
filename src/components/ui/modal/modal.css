@@ -477,6 +477,24 @@
     font-weight: 800;
 }
 
+/* CAMBIO (etiqueta de estatus en cada tarjeta): ahora que "otros
+   ejemplares" mezcla Disponibles y Apartados, hace falta distinguirlos
+   a simple vista para que nadie confunda uno Apartado con uno que
+   todavía se puede comprar. El color de fondo lo pone gratis la regla
+   ".status-disponible / .status-apartado / ..." que ya existe más
+   arriba en este archivo (selector compartido con .detail-status-text)
+   -- aquí solo se agrega el tamaño/forma de la versión mini. */
+.other-card-status {
+    display: inline-block;
+    width: fit-content;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 /* ============================================================
    TABLET Y ESCRITORIO (>= 768px)
    ============================================================ */
@@ -680,5 +698,10 @@
 
     .other-card-price {
         font-size: 0.85rem;
+    }
+
+    .other-card-status {
+        font-size: 0.68rem;
+        padding: 2px 7px;
     }
 }

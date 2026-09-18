@@ -79,6 +79,39 @@
     pointer-events: none;
 }
 
+/* ---------- Slides del carrusel ----------
+   CAMBIO (carrusel de 3 destacados): cada .featured-slide ocupa TODO
+   el espacio de .featured-hero (mismo min-height ya definido arriba),
+   apiladas una encima de otra. Solo la que tiene .featured-slide--active
+   es visible -- featured.js le agrega/quita esa clase cada 3s. opacity
+   en vez de display:none para poder animar el cruce con transition en
+   vez de un corte seco, y pointer-events: none en las inactivas para
+   que no se puedan clickear ni tabular por accidente mientras están
+   ocultas. isolation: isolate repite el mismo truco que ya usa
+   .featured-hero para que los z-index negativos de .featured-hero-bg/
+   overlay de CADA slide se contengan dentro de su propia slide, sin
+   pelearse entre sí en la pila global. */
+.featured-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    isolation: isolate;
+    transition: opacity 0.6s ease;
+}
+
+.featured-slide--active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Los dots de navegación ahora viven dentro de .featured-hero-actions,
+   junto al botón de WhatsApp (ver más abajo) -- ya no están
+   posicionados en la esquina superior. */
+
+
 /* ---------- Badges superiores ---------- */
 .featured-hero-badge {
     position: absolute;
@@ -163,7 +196,7 @@
     color: #ffffff;
 }
 
-/* ---------- Fila inferior: precio + botón ---------- */
+/* ---------- Fila inferior: precio + acciones (botón + dots) ---------- */
 .featured-hero-footer {
     display: flex;
     align-items: center;
@@ -180,17 +213,29 @@
     line-height: 1;
 }
 
+/* CAMBIO: agrupa el botón de WhatsApp y los dots del carrusel para
+   que se muevan y envuelvan (flex-wrap) juntos como una sola unidad
+   frente al precio, en vez de que cada uno decida su lugar por su
+   cuenta. flex-shrink: 0 evita que el precio (que puede variar mucho
+   en longitud) los empuje y los comprima. */
+.featured-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+}
+
 .featured-hero-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.4rem;
     background: #25D366;
     color: #ffffff;
-    padding: 0.7rem 1.2rem;
+    padding: 0.55rem 0.95rem;
     border-radius: 10px;
     font-weight: 700;
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     flex-shrink: 0;
     box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
     transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
@@ -203,8 +248,42 @@
 }
 
 .featured-hero-btn svg {
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
+}
+
+/* CAMBIO (dots junto al botón, ya no arriba): fila horizontal
+   compacta, sin position: absolute -- ahora es un simple hijo flex
+   más de .featured-hero-actions. Se repite (idéntica) dentro del
+   footer de CADA slide -- solo se ve la copia de la slide activa,
+   las otras dos heredan opacity: 0/pointer-events: none de su
+   .featured-slide padre (ver featured.css arriba), así que nunca hay
+   dots duplicados clickeables encimados. featured.js sincroniza el
+   estado --active de las 3 copias de cada índice a la vez. */
+.featured-hero-dots {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.featured-hero-dot {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.featured-hero-dot:hover {
+    background: rgba(255, 255, 255, 0.7);
+}
+
+.featured-hero-dot--active {
+    background: #ffffff;
+    transform: scale(1.3);
 }
 
 /* ---------- Desktop ---------- */
@@ -236,7 +315,12 @@
     }
 
     .featured-hero-btn {
-        padding: 0.85rem 1.6rem;
-        font-size: 1rem;
+        padding: 0.65rem 1.25rem;
+        font-size: 0.88rem;
+    }
+
+    .featured-hero-dot {
+        width: 15px;
+        height: 15px;
     }
 }

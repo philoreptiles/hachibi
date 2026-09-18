@@ -14,11 +14,17 @@ let currentList = [];
 let currentIndex = 0;
 let keyListenerBound = false;
 
-// Lista COMPLETA de ejemplares disponibles (sin filtros ni paginación).
-// Se carga una sola vez al abrir el modal y se usa para la sección
-// "Ejemplares disponibles" de la parte inferior.
-let allAvailableEjemplares = [];
-let allAvailableLoaded = false;
+// Lista COMPLETA de ejemplares navegables (Disponible + Apartado, sin
+// filtros de catálogo ni paginación). Se carga una sola vez al abrir
+// la modal y alimenta tanto la navegación Anterior/Siguiente como la
+// sección "Otros ejemplares" de la parte inferior.
+//
+// CAMBIO (se agregó Apartado): antes solo traía "Disponible". Vendido
+// y Holdback siguen quedando fuera a propósito -- no tiene mucho caso
+// ofrecerle a alguien navegar hacia un ejemplar ya vendido o que ni
+// siquiera está a la venta.
+let allNavigableEjemplares = [];
+let allNavigableLoaded = false;
 
 /**
  * Genera la URL de WhatsApp y el texto del botón según el estatus del ejemplar
@@ -60,40 +66,41 @@ export function getWhatsAppDetails(ejemplar) {
 }
 
 /**
- * Filtra los ejemplares con estatus "Disponible", excluyendo el ejemplar actualmente abierto.
- * Ahora trabaja sobre la lista COMPLETA de disponibles (allAvailableEjemplares),
- * no sobre currentList.
+ * Filtra los ejemplares navegables (Disponible + Apartado), excluyendo
+ * el ejemplar actualmente abierto. Trabaja sobre la lista COMPLETA
+ * (allNavigableEjemplares), no sobre currentList.
  */
-function getAvailableEjemplares(ejemplarActual) {
-    return allAvailableEjemplares.filter(ejemplar =>
+function getOtrosNavegables(ejemplarActual) {
+    return allNavigableEjemplares.filter(ejemplar =>
         ejemplar &&
         ejemplar.id !== ejemplarActual.id
     );
 }
 
 /**
- * Carga (una sola vez) TODOS los ejemplares con estatus "Disponible"
- * desde Supabase, sin aplicar filtros ni paginación.
+ * Carga (una sola vez) TODOS los ejemplares con estatus "Disponible" o
+ * "Apartado" desde Supabase, sin aplicar filtros de catálogo ni
+ * paginación.
  */
-async function cargarTodosLosDisponibles() {
-    if (allAvailableLoaded) return;
+async function cargarTodosLosNavegables() {
+    if (allNavigableLoaded) return;
 
     try {
-        // Pedimos un límite alto para traer todos los disponibles.
+        // Pedimos un límite alto para traer todos los navegables.
         // Si tienes muchísimos ejemplares (>1000) considera paginar
         // esta carga, pero para un catálogo de reptiles es más que suficiente.
         const resultado = await getEjemplares({ page: 1, limit: 500 }) || [];
 
-        allAvailableEjemplares = resultado.filter(e =>
-            e &&
-            e.estatus &&
-            e.estatus.toLowerCase().trim() === 'disponible'
-        );
+        allNavigableEjemplares = resultado.filter(e => {
+            if (!e || !e.estatus) return false;
+            const estatusNorm = e.estatus.toLowerCase().trim();
+            return estatusNorm === 'disponible' || estatusNorm === 'apartado';
+        });
 
-        allAvailableLoaded = true;
+        allNavigableLoaded = true;
     } catch (error) {
-        console.error('Error al cargar todos los ejemplares disponibles:', error);
-        allAvailableEjemplares = [];
+        console.error('Error al cargar todos los ejemplares navegables:', error);
+        allNavigableEjemplares = [];
     }
 }
 
@@ -142,19 +149,44 @@ function handleKeyPress(e) {
 
 /**
  * Abre la modal con el ejemplar seleccionado y el contexto del catálogo
+ *
+ * CAMBIO (navegación sobre TODO el catálogo visible, no solo la
+ * página cargada): antes, "Anterior/Siguiente" y el contador
+ * ("Ejemplar X de N") navegaban sobre `todosLosEjemplares` tal cual
+ * lo pasaba catalog.js -- que por la paginación del catálogo público
+ * (8 por página) solo traía los ejemplares de la página que estaba
+ * cargada en el momento del clic. La sección "Otros ejemplares" de
+ * abajo, en cambio, siempre usó la lista completa -- por eso ahí sí
+ * aparecían todos y arriba no. Ahora, si el ejemplar abierto está
+ * Disponible o Apartado, currentList pasa a ser esa misma lista
+ * completa, y se busca su índice real ahí dentro. Para
+ * Vendido/Holdback -- que NO forman parte de allNavigableEjemplares --
+ * se conserva el comportamiento anterior (navegar sobre lo que el
+ * catálogo tenía cargado, o quedar aislado si no se pasó nada), igual
+ * que ya se hacía al hacer clic en un "other-card" que no estaba en
+ * la lista actual.
  */
 export async function openModal(ejemplar, todosLosEjemplares = [], indexActual = 0) {
     const modalElement = document.getElementById('modal-overlay');
     if (!modalElement) return;
 
-    currentList = todosLosEjemplares.length > 0 ? todosLosEjemplares : [ejemplar];
-    currentIndex = indexActual >= 0 ? indexActual : 0;
-
     initModalEvents();
 
-    // Cargamos TODOS los disponibles antes de renderizar, para que la
-    // sección inferior aparezca completa desde el primer render.
-    await cargarTodosLosDisponibles();
+    // Cargamos TODOS los navegables ANTES de decidir la lista de
+    // navegación (antes se cargaba después, cuando currentList ya
+    // había quedado fijada a la página parcial).
+    await cargarTodosLosNavegables();
+
+    const estatusEjemplar = (ejemplar.estatus || '').toLowerCase().trim();
+
+    if ((estatusEjemplar === 'disponible' || estatusEjemplar === 'apartado') && allNavigableEjemplares.length > 0) {
+        currentList = allNavigableEjemplares;
+        const idxEnTodos = currentList.findIndex(e => String(e.id) === String(ejemplar.id));
+        currentIndex = idxEnTodos >= 0 ? idxEnTodos : 0;
+    } else {
+        currentList = todosLosEjemplares.length > 0 ? todosLosEjemplares : [ejemplar];
+        currentIndex = indexActual >= 0 ? indexActual : 0;
+    }
 
     renderModalContent(currentList[currentIndex]);
 
@@ -241,19 +273,22 @@ function renderModalContent(ejemplar = {}) {
     const statusClass = escapeHTML(`status-${estatusNormalizado.replace(/\s+/g, '-')}`);
     const btnClass = isDisponible ? 'btn-available' : 'btn-unavailable';
 
-    // Sección inferior: TODOS los disponibles, sin excluir los que no
-    // están en currentList. Al hacer clic se abre un modal "aislado"
-    // con ese ejemplar (no navega dentro de currentList).
-    const ejemplaresDisponibles = getAvailableEjemplares(ejemplar);
+    // Sección inferior: TODOS los navegables (Disponible + Apartado),
+    // sin excluir los que no están en currentList. Al hacer clic se
+    // abre un modal "aislado" con ese ejemplar si no está en
+    // currentList (no debería pasar casi nunca ahora, ver openModal()).
+    const otrosNavegables = getOtrosNavegables(ejemplar);
 
     let otrosEjemplaresHTML = '';
-    if (ejemplaresDisponibles.length > 0) {
+    if (otrosNavegables.length > 0) {
         otrosEjemplaresHTML = `
             <div class="modal-others-grid">
-                ${ejemplaresDisponibles.map((item) => {
+                ${otrosNavegables.map((item) => {
                     const itemImg = safeImageUrl(item.imagen_url);
                     const itemEspecie = escapeHTML(item.especie || 'Reptil');
                     const itemPrecio = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 0 }).format(Number(item.precio) || 0);
+                    const itemEstatus = escapeHTML((item.estatus || 'Disponible').trim());
+                    const itemEstatusClass = escapeHTML(`status-${(item.estatus || 'Disponible').trim().toLowerCase().replace(/\s+/g, '-')}`);
 
                     return `
                         <div class="other-card" data-id="${escapeHTML(String(item.id))}">
@@ -263,6 +298,7 @@ function renderModalContent(ejemplar = {}) {
                             <div class="other-card-info">
                                 <span class="other-card-species">${itemEspecie}</span>
                                 <span class="other-card-price">${itemPrecio}</span>
+                                <span class="other-card-status ${itemEstatusClass}">${itemEstatus}</span>
                             </div>
                         </div>
                     `;
@@ -270,7 +306,7 @@ function renderModalContent(ejemplar = {}) {
             </div>
         `;
     } else {
-        otrosEjemplaresHTML = `<p class="no-others-message">No hay más ejemplares disponibles en este momento</p>`;
+        otrosEjemplaresHTML = `<p class="no-others-message">No hay más ejemplares disponibles ni apartados en este momento</p>`;
     }
 
     content.innerHTML = `
@@ -363,7 +399,7 @@ function renderModalContent(ejemplar = {}) {
 
         <!-- Otros Ejemplares Disponibles -->
         <div class="modal-others-section">
-            <h3 class="modal-others-title">Ejemplares disponibles</h3>
+            <h3 class="modal-others-title">Otros ejemplares disponibles y apartados</h3>
             ${otrosEjemplaresHTML}
         </div>
     `;
@@ -403,7 +439,7 @@ function renderModalContent(ejemplar = {}) {
     otherCards.forEach(card => {
         card.onclick = () => {
             const id = card.dataset.id;
-            const item = allAvailableEjemplares.find(e => String(e.id) === String(id));
+            const item = allNavigableEjemplares.find(e => String(e.id) === String(id));
             if (!item) return;
 
             const idxEnCurrent = currentList.findIndex(e => String(e.id) === String(id));
