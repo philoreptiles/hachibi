@@ -3,6 +3,7 @@ import { compressImage } from '../../utils/image-compressor.js';
 import { escapeHTML, safeImageUrl } from '../../utils/security.js';
 import { siteConfig, applySiteTheme } from '../../site-config.js';
 import { confirmDialog } from '../../utils/confirm-dialog.js';
+import { validarImagenParaSubir } from '../../utils/image-validation.js';
 
 applySiteTheme();
 document.title = `Panel de Administración - ${siteConfig.brandName}`;
@@ -491,30 +492,24 @@ function setupDragAndDrop(zoneId, inputId, previewId) {
 }
 
 
-function handleFilePreview(file, previewContainer, dropZone) {
+// CAMBIO: la validación del archivo ahora delega en validarImagenParaSubir()
+// (image-validation.js), que detecta HEIC/HEIF por MAGIC BYTES en vez de
+// por file.type. En iOS el MIME a veces viene vacío, y el chequeo viejo
+// basado en regex no atrapaba esos archivos: llegaban hasta el final del
+// formulario y reventaban al guardar (o peor, se subían crudos y se veían
+// rotos en el catálogo público). Ahora se rechazan aquí mismo, al
+// seleccionarlos, con un mensaje que explica cómo convertir la foto.
+async function handleFilePreview(file, previewContainer, dropZone) {
 
-    // CAMBIO: antes no se validaba nada aquí, así que un PDF o un video
-    // arrastrado al drop-zone rompía el preview silenciosamente y aun así
-    // se intentaba subir a Storage en handleAddEjemplar. Ahora se rechaza
-    // temprano con un mensaje claro.
-    if (!file.type || !file.type.startsWith('image/')) {
-        showAlert('Selecciona un archivo de imagen válido (JPG, PNG, WEBP).', 'error');
-        return;
-    }
-    if (file.size > MAX_RAW_FILE_SIZE) {
-        showAlert('La imagen pesa demasiado (máximo 15MB).', 'error');
-        return;
-    }
-    // Fotos de iPhone en formato HEIC/HEIF -- se avisa aquí mismo, al
-    // seleccionarla, en vez de dejar que la persona llene todo el
-    // formulario y se entere hasta que falle el guardado (ver mismo
-    // chequeo en uploadImage(), que es el que de verdad bloquea la
-    // subida si de todos modos llega hasta ahí).
-    if (/^image\/hei[cf]/i.test(file.type)) {
-        showAlert(
-            'Esta foto está en formato HEIC (nativo de iPhone) y no se puede usar así. Cambia el formato de cámara a "Más compatible" en Ajustes > Cámara, o convierte la foto a JPEG antes de subirla.',
-            'error'
-        );
+    const validacion = await validarImagenParaSubir(file, MAX_RAW_FILE_SIZE);
+
+    if (!validacion.ok) {
+        showAlert(validacion.mensaje, 'error');
+
+        // Limpiar el input para que el usuario no reintente con el
+        // mismo archivo creyendo que ya se seleccionó algo válido.
+        const input = dropZone?.querySelector('input[type="file"]');
+        if (input) input.value = '';
         return;
     }
 
@@ -565,18 +560,23 @@ function handleFilePreview(file, previewContainer, dropZone) {
 
 const UPLOAD_WORKER_URL = import.meta.env.VITE_UPLOAD_WORKER_URL;
 
-function validateImageFile(file) {
-    if (!file.type || !file.type.startsWith('image/')) {
-        throw new Error('El archivo seleccionado no es una imagen válida.');
-    }
-    if (file.size > MAX_RAW_FILE_SIZE) {
-        throw new Error('La imagen pesa demasiado (máximo 15MB antes de comprimir).');
-    }
-}
-
+// CAMBIO CRÍTICO (uploadImage): antes, cualquier fallo de compresión
+// caía al fallback de "subir el archivo original sin comprimir". Eso
+// convertía un HEIC no detectado (file.type vacío en iOS) en una
+// imagen rota subida a R2 en silencio. Ahora:
+//   1. Se valida por magic bytes ANTES de tocar nada. Si es HEIC/HEIF/
+//      AVIF, corta aquí con el mensaje accionable.
+//   2. Si compressImage falla con code 'FORMATO_NO_DECODIFICABLE', NO
+//      se sube el original -- se propaga el error.
+//   3. Solo se cae al fallback de "subir sin comprimir" cuando el
+//      formato SÍ es decodificable y el fallo fue por otra razón
+//      (navegador viejo, memoria, etc.).
 async function uploadImage(file, ejemplarId = null) {
 
-    validateImageFile(file);
+    const validacion = await validarImagenParaSubir(file, MAX_RAW_FILE_SIZE);
+    if (!validacion.ok) {
+        throw new Error(validacion.mensaje);
+    }
 
     if (!UPLOAD_WORKER_URL) {
         throw new Error(
@@ -585,9 +585,7 @@ async function uploadImage(file, ejemplarId = null) {
         );
     }
 
-    // Comprime a JPEG antes de subir. Si por alguna razón la compresión
-    // falla (formato raro, navegador viejo, etc.), se sube el archivo
-    // original en vez de bloquear por completo el registro del ejemplar.
+    // Comprime a JPEG antes de subir.
     let uploadBlob = file;
     let fileExt = file.name.split('.').pop();
 
@@ -595,18 +593,10 @@ async function uploadImage(file, ejemplarId = null) {
         uploadBlob = await compressImage(file, 1280, 1280, 0.78);
         fileExt = 'jpg';
     } catch (compressionError) {
-        // HEIC/HEIF (el formato "nativo" de fotos de iPhone, cuando el
-        // picker no las convirtió automáticamente a JPEG) no se puede
-        // decodificar en el navegador para comprimir, y tampoco se ve en
-        // ningún navegador fuera de Safari/apps de Apple una vez subido
-        // -- en vez de subir igual un archivo que se va a ver roto en el
-        // catálogo público, se corta aquí con un mensaje accionable.
-        if (/^image\/hei[cf]/i.test(file.type)) {
-            throw new Error(
-                'Esta foto está en formato HEIC (el formato nativo de cámara de iPhone), y no se puede subir así. ' +
-                'En el iPhone: Ajustes > Cámara > Formatos > "Más compatible" (para fotos nuevas), o al elegir la ' +
-                'foto para subir, usa "Editar" y expórtala/compártela como imagen para convertirla antes.'
-            );
+        if (compressionError?.code === 'FORMATO_NO_DECODIFICABLE') {
+            // No debería llegar aquí (ya validamos arriba), pero si
+            // por lo que sea llega, NO subimos el original crudo.
+            throw new Error(validacion.mensaje || compressionError.message);
         }
         console.warn('No se pudo comprimir la imagen, se subirá sin comprimir:', compressionError);
     }
@@ -791,7 +781,10 @@ function resetNewImagePreviews() {
 }
 
 
-function previewEditImage(input, previewId) {
+// CAMBIO: igual que handleFilePreview, la validación ahora delega en
+// validarImagenParaSubir() (magic bytes, no MIME). Mismo mensaje
+// accionable, misma cobertura para HEIC con file.type vacío.
+async function previewEditImage(input, previewId) {
 
     const file = input?.files?.[0];
     const preview = document.getElementById(previewId);
@@ -804,23 +797,13 @@ function previewEditImage(input, previewId) {
         return;
     }
 
-    if (!file.type.startsWith('image/')) {
-        input.value = '';
-        preview.innerHTML = '';
-        preview.classList.add('hidden');
-        showAlert('Selecciona un archivo de imagen válido.', 'error', 'modal');
-        return;
-    }
+    const validacion = await validarImagenParaSubir(file, MAX_RAW_FILE_SIZE);
 
-    if (/^image\/hei[cf]/i.test(file.type)) {
+    if (!validacion.ok) {
         input.value = '';
         preview.innerHTML = '';
         preview.classList.add('hidden');
-        showAlert(
-            'Esta foto está en formato HEIC (nativo de iPhone) y no se puede usar así. Cambia el formato de cámara a "Más compatible" en Ajustes > Cámara, o convierte la foto a JPEG antes de subirla.',
-            'error',
-            'modal'
-        );
+        showAlert(validacion.mensaje, 'error', 'modal');
         return;
     }
 
