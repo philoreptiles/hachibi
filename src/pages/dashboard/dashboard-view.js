@@ -275,7 +275,7 @@ async function renderResumenGeneral() {
         animarNumero(document.getElementById('kpi-holdback-count'), holdbackCount);
         actualizarTexto(
             'kpi-holdback-sub',
-            holdbackCount > 0 ? 'No se muestran en el catálogo público' : 'Sin ejemplares en holdback'
+            holdbackCount > 0 ? 'Reservados por el criador' : 'Sin ejemplares en holdback'
         );
 
         const statusItems = Object.entries(conteoEstatus)

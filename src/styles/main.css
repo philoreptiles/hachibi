@@ -78,9 +78,85 @@ select option {
 
 body {
     background-color: var(--bg-color);
+    /* Textura sutil: antes era un gris plano. Un gradiente radial muy
+       tenue -- 6% del color de marca, apagándose a los 2/3 de la
+       pantalla -- le da profundidad sin volverse un fondo "diseñado"
+       que compita con las fotos de los ejemplares. Usa color-mix()
+       (mismo truco que ya usa hero.css) para que se adapte solo a la
+       paleta de cada cliente, sin tocar este archivo.
+       background-attachment: fixed evita que el gradiente se
+       "repita" visualmente al hacer scroll en páginas largas. */
+    background-image: radial-gradient(
+        circle at 50% 0%,
+        color-mix(in srgb, var(--primary-color) 6%, var(--bg-color)) 0%,
+        var(--bg-color) 65%
+    );
+    background-attachment: fixed;
     color: var(--text-light);
     font-family: var(--font-secondary);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Scrollbar a la medida del tema -- Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--moonstone-color) var(--jet-dark);
+}
+
+/* Scrollbar a la medida del tema -- Chrome/Edge/Safari */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--jet-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--moonstone-color);
+    border-radius: 20px;
+    border: 2px solid var(--jet-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary-color);
+}
+
+/* Selección de texto con el color de marca en vez del azul por
+   default del navegador -- detalle mínimo, prácticamente nadie lo
+   personaliza, así que se nota. */
+::selection {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+/* Barra de progreso superior (ver src/utils/progress-bar.js) --
+   fija arriba de TODA la página, por encima incluso del modal
+   (z-index más alto que el overlay), para que se note el cambio de
+   filtro o la carga de una página nueva sin importar qué esté
+   abierto en ese momento. */
+.top-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background-color: var(--primary-color);
+    z-index: 5000;
+    opacity: 0;
+    transition: width 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.top-progress-bar.is-loading {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .top-progress-bar {
+        transition: opacity 0.2s ease;
+    }
 }

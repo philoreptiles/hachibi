@@ -90,6 +90,24 @@
     align-items: center;
     text-transform: none !important;
     line-height: 1 !important;
+    position: relative;
+}
+
+/* Subrayado que crece desde el centro -- en vez de solo el cambio de
+   color plano que ya había, refuerza cuál link se está por abrir.
+   Vive dentro del @media de escritorio de abajo junto a los demás
+   :hover, por la misma razón que ya documentaron arriba: no tiene
+   sentido en pantallas táctiles. */
+.nav-btn::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: 2px;
+    width: 0;
+    height: 2px;
+    background-color: var(--primary-color);
+    transform: translateX(-50%);
+    transition: width 0.25s ease;
 }
 
 .whatsapp-btn,
@@ -127,8 +145,18 @@
         background-color: rgba(255, 255, 255, 0.05) !important;
     }
 
+    .nav-btn:hover::after {
+        width: 55%;
+    }
+
     .whatsapp-btn:hover {
         transform: translateY(-1px);
         box-shadow: 0 3px 8px rgba(37, 211, 102, 0.3) !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nav-btn::after {
+        transition: none;
     }
 }

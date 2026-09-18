@@ -19,6 +19,16 @@ const MAX_RAW_FILE_SIZE = 15 * 1024 * 1024; // 15 MB
 
 let currentFilteredData = [];
 let editingEjemplarId = null;
+
+// Estado de las 3 imágenes MIENTRAS se edita un ejemplar -- separado
+// de lo que ya está guardado en Supabase (el objeto `ejemplar` que
+// llega a openEditModal) para poder reflejar un "hacer principal"
+// (ver hacerImagenPrincipal) al instante en los 3 previews, sin tener
+// que guardar todavía. imagenesReordenadas indica si hubo al menos un
+// swap, para que handleEditSubmit sepa que debe mandar las 3 URLs a
+// Supabase aunque no se haya subido ningún archivo nuevo.
+let imagenesEditando = { url1: null, url2: null, url3: null };
+let imagenesReordenadas = false;
 let showingAll = false;
 
 // Búsqueda unificada: filtra currentFilteredData en el navegador, sin
@@ -495,6 +505,18 @@ function handleFilePreview(file, previewContainer, dropZone) {
         showAlert('La imagen pesa demasiado (máximo 15MB).', 'error');
         return;
     }
+    // Fotos de iPhone en formato HEIC/HEIF -- se avisa aquí mismo, al
+    // seleccionarla, en vez de dejar que la persona llene todo el
+    // formulario y se entere hasta que falle el guardado (ver mismo
+    // chequeo en uploadImage(), que es el que de verdad bloquea la
+    // subida si de todos modos llega hasta ahí).
+    if (/^image\/hei[cf]/i.test(file.type)) {
+        showAlert(
+            'Esta foto está en formato HEIC (nativo de iPhone) y no se puede usar así. Cambia el formato de cámara a "Más compatible" en Ajustes > Cámara, o convierte la foto a JPEG antes de subirla.',
+            'error'
+        );
+        return;
+    }
 
     const reader = new FileReader();
 
@@ -573,6 +595,19 @@ async function uploadImage(file, ejemplarId = null) {
         uploadBlob = await compressImage(file, 1280, 1280, 0.78);
         fileExt = 'jpg';
     } catch (compressionError) {
+        // HEIC/HEIF (el formato "nativo" de fotos de iPhone, cuando el
+        // picker no las convirtió automáticamente a JPEG) no se puede
+        // decodificar en el navegador para comprimir, y tampoco se ve en
+        // ningún navegador fuera de Safari/apps de Apple una vez subido
+        // -- en vez de subir igual un archivo que se va a ver roto en el
+        // catálogo público, se corta aquí con un mensaje accionable.
+        if (/^image\/hei[cf]/i.test(file.type)) {
+            throw new Error(
+                'Esta foto está en formato HEIC (el formato nativo de cámara de iPhone), y no se puede subir así. ' +
+                'En el iPhone: Ajustes > Cámara > Formatos > "Más compatible" (para fotos nuevas), o al elegir la ' +
+                'foto para subir, usa "Editar" y expórtala/compártela como imagen para convertirla antes.'
+            );
+        }
         console.warn('No se pudo comprimir la imagen, se subirá sin comprimir:', compressionError);
     }
 
@@ -658,9 +693,13 @@ function openEditModal(ejemplar) {
     const visibleCheckbox = document.getElementById('edit-visible_publico');
     if (visibleCheckbox) visibleCheckbox.checked = ejemplar.visible_publico !== false;
 
-    setupCurrentImage('edit-imagen-actual-1', 'edit-imagen-empty-1', ejemplar.imagen_url);
-    setupCurrentImage('edit-imagen-actual-2', 'edit-imagen-empty-2', ejemplar.imagen_url_2);
-    setupCurrentImage('edit-imagen-actual-3', 'edit-imagen-empty-3', ejemplar.imagen_url_3);
+    imagenesEditando = {
+        url1: ejemplar.imagen_url || null,
+        url2: ejemplar.imagen_url_2 || null,
+        url3: ejemplar.imagen_url_3 || null
+    };
+    imagenesReordenadas = false;
+    refrescarPreviewsImagenes();
 
     resetNewImagePreviews();
 
@@ -704,6 +743,41 @@ function setupCurrentImage(imageId, emptyId, url) {
 }
 
 
+/**
+ * Repinta los 3 previews de "imagen actual" a partir de
+ * `imagenesEditando` -- se llama al abrir el modal y otra vez cada
+ * vez que hacerImagenPrincipal() hace un swap, para que se vea al
+ * instante sin tener que guardar primero.
+ */
+function refrescarPreviewsImagenes() {
+    setupCurrentImage('edit-imagen-actual-1', 'edit-imagen-empty-1', imagenesEditando.url1);
+    setupCurrentImage('edit-imagen-actual-2', 'edit-imagen-empty-2', imagenesEditando.url2);
+    setupCurrentImage('edit-imagen-actual-3', 'edit-imagen-empty-3', imagenesEditando.url3);
+}
+
+
+/**
+ * Intercambia la imagen del slot 2 o 3 con la del slot 1 (la que se
+ * usa como portada en la card del catálogo público). No sube ni
+ * borra nada en Storage -- solo reordena qué URL va en qué columna,
+ * así que es prácticamente instantáneo. El intercambio se vuelve
+ * definitivo hasta que se le da "Guardar cambios" (ver
+ * handleEditSubmit / imagenesReordenadas).
+ */
+function hacerImagenPrincipal(slot) {
+    const key = `url${slot}`;
+
+    if (!imagenesEditando[key]) return; // slot vacío, no hay nada que subir a principal
+
+    const temp = imagenesEditando.url1;
+    imagenesEditando.url1 = imagenesEditando[key];
+    imagenesEditando[key] = temp;
+
+    imagenesReordenadas = true;
+    refrescarPreviewsImagenes();
+}
+
+
 function resetNewImagePreviews() {
 
     ['1', '2', '3'].forEach(number => {
@@ -735,6 +809,18 @@ function previewEditImage(input, previewId) {
         preview.innerHTML = '';
         preview.classList.add('hidden');
         showAlert('Selecciona un archivo de imagen válido.', 'error', 'modal');
+        return;
+    }
+
+    if (/^image\/hei[cf]/i.test(file.type)) {
+        input.value = '';
+        preview.innerHTML = '';
+        preview.classList.add('hidden');
+        showAlert(
+            'Esta foto está en formato HEIC (nativo de iPhone) y no se puede usar así. Cambia el formato de cámara a "Más compatible" en Ajustes > Cámara, o convierte la foto a JPEG antes de subirla.',
+            'error',
+            'modal'
+        );
         return;
     }
 
@@ -796,6 +882,9 @@ function setupEditModalListeners() {
             previewEditImage(event.target, `new-image-preview-${num}`);
         });
     });
+
+    document.getElementById('btn-hacer-principal-2')?.addEventListener('click', () => hacerImagenPrincipal(2));
+    document.getElementById('btn-hacer-principal-3')?.addEventListener('click', () => hacerImagenPrincipal(3));
 
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && editModal.classList.contains('is-open')) {
@@ -862,6 +951,17 @@ async function handleEditSubmit(event) {
         visible_publico: visiblePublico,
         notas
     };
+
+    // Si se usó "Hacer principal" para reordenar las imágenes ya
+    // guardadas (sin subir ningún archivo nuevo), hay que mandar las
+    // 3 URLs explícitamente -- si no, Supabase no se entera del
+    // cambio porque `data` normalmente solo toca imagen_url* cuando
+    // updateEjemplar() detecta un archivo nuevo en nuevasImagenes.
+    if (imagenesReordenadas) {
+        data.imagen_url = imagenesEditando.url1;
+        data.imagen_url_2 = imagenesEditando.url2;
+        data.imagen_url_3 = imagenesEditando.url3;
+    }
 
     const nuevasImagenes = {
         imagen1: document.getElementById('edit-imagen-1')?.files?.[0] || null,

@@ -40,10 +40,28 @@
     display: block;
     z-index: -2;
     transition: transform 0.6s ease;
+    /* Zoom lento y continuo -- casi imperceptible cuadro a cuadro,
+       pero le da vida a una foto estática que si no se queda
+       completamente quieta. Se pausa en hover (ver regla de abajo)
+       para dejarle el paso al scale(1.05) más rápido que ya existía,
+       y retoma justo donde iba al quitar el mouse. */
+    animation: kenBurnsZoom 14s ease-in-out infinite;
+}
+
+@keyframes kenBurnsZoom {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
 }
 
 .featured-hero:hover .featured-hero-bg {
+    animation-play-state: paused;
     transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .featured-hero-bg {
+        animation: none;
+    }
 }
 
 /* Overlay degradado: oscuro abajo, transparente arriba */

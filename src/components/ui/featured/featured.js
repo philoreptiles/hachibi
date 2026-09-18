@@ -12,6 +12,7 @@
  * no depender del ordenamiento por defecto de getEjemplares().
  */
 import { supabase } from '../../../supabase-config.js';
+import { siteConfig } from '../../../site-config.js';
 import { escapeHTML, safeImageUrl } from '../../../utils/security.js';
 import { iconMarkup } from '../../../utils/icons.js';
 import { openModal, getWhatsAppDetails } from '../modal/modal.js';
@@ -22,12 +23,18 @@ export async function renderFeatured(containerId) {
 
     let destacado;
     try {
-        // Consulta directa ordenando por precio descendente.
-        // Solo ejemplares visibles (ajusta el filtro si tienes una columna
-        // como "visible" o "publicado").
+        // Mismas 2 reglas que getEjemplares()/getEjemplarPorId() en
+        // supabase-config.js -- sin ellas, el destacado podía salir
+        // "Vendido"/"Holdback" (visible_publico = false) o, si este
+        // proyecto de Supabase se comparte entre criadores, hasta el
+        // ejemplar más caro de OTRO criador. Se ordena por precio
+        // descendente y se toma el primero que sí es público y de
+        // este sitio.
         const { data, error } = await supabase
             .from('ejemplares')
             .select('*')
+            .eq('visible_publico', true)
+            .eq('criador_id', siteConfig.criadorId)
             .order('precio', { ascending: false })
             .limit(1);
 

@@ -2,6 +2,7 @@ import { createCardElement } from '../../common/card/card.js';
 import { getEjemplares, getEjemplarPorId } from '../../../supabase-config.js';
 import { openModal } from '../modal/modal.js';
 import { iconMarkup } from '../../../utils/icons.js';
+import { startProgress, finishProgress } from '../../../utils/progress-bar.js';
 
 const PAGE_SIZE = 8;
 
@@ -47,6 +48,7 @@ export async function renderCatalog(containerId, filters = {}) {
     catalogData = [];
 
     container.innerHTML = renderSkeletonGrid();
+    startProgress();
 
     try {
         const primeraPagina = await getEjemplares({
@@ -102,6 +104,8 @@ export async function renderCatalog(containerId, filters = {}) {
 
         const retryBtn = container.querySelector('#btn-catalog-retry');
         retryBtn?.addEventListener('click', () => renderCatalog(containerId, currentFilters));
+    } finally {
+        finishProgress();
     }
 }
 
@@ -217,6 +221,7 @@ async function handleLoadMoreClick(event) {
     isLoadingMore = true;
     button.disabled = true;
     button.textContent = 'Cargando...';
+    startProgress();
 
     try {
         const siguientePagina = await getEjemplares({
@@ -249,5 +254,7 @@ async function handleLoadMoreClick(event) {
         isLoadingMore = false;
         button.disabled = false;
         button.textContent = 'Reintentar';
+    } finally {
+        finishProgress();
     }
 }
