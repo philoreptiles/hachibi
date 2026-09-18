@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
-    <title>Panel de Administración - Escama y Colmillo</title>
+    <title>Panel de Administración - Reptiles Durán</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="stylesheet" href="../../styles/main.css">
     <link rel="stylesheet" href="../../styles/pages/admin.css">
@@ -14,7 +14,7 @@
     <header class="header">
         <div class="header-container">
             <a href="/index.html" class="logo-link">
-                <span class="brand-title" id="brand-title-text">ESCAMA Y COLMILLO</span>
+                <span class="brand-title" id="brand-title-text">Reptiles Durán</span>
             </a>
 
             <nav class="nav-menu">
@@ -38,7 +38,7 @@
 
             <form id="login-form" class="admin-form">
                 <div class="form-group-premium" style="margin-bottom: 1rem;">
-                    <label for="login-email">Usuario / Email</label>
+                    <label for="login-email">Usuario</label>
                     <input type="email" id="login-email" required placeholder="admin@criadero.com">
                 </div>
                 <div class="form-group-premium" style="margin-bottom: 1.5rem;">
@@ -57,7 +57,7 @@
 
             <div class="dashboard-header">
                 <h1>Panel de control del inventario</h1>
-                <p>Gestiona los ejemplares disponibles en el catálogo web.</p>
+                <p>Gestiona los ejemplares disponibles en el catálogo.</p>
             </div>
 
             <div id="status-alert" class="alert-premium hidden"></div>
@@ -136,12 +136,12 @@
                         </div>
 
                         <div class="form-group-premium">
-                            <label for="longitud">Longitud (cm)</label>
+                            <label for="longitud">Longitud (centímetros)</label>
                             <input type="number" id="longitud" name="longitud" step="0.1" min="0" placeholder="Ej. 45.5">
                         </div>
 
                         <div class="form-group-premium">
-                            <label for="peso_gramos">Peso (g)</label>
+                            <label for="peso_gramos">Peso (gramos)</label>
                             <input type="number" id="peso_gramos" name="peso_gramos" step="1" min="0" placeholder="Ej. 300">
                         </div>
 
@@ -161,7 +161,8 @@
                         </div>
 
                         <div class="form-group-premium form-group-full" style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" id="visible_publico" name="visible_publico" checked style="width: auto;">
+                             <input type="checkbox" id="visible_publico" name="visible_publico" checked 
+                             style="width: auto; accent-color: #b37a7a;">
                             <label for="visible_publico" style="margin: 0;">Mostrar este ejemplar en el catálogo público</label>
                         </div>
 
