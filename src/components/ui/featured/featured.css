@@ -267,8 +267,8 @@
 }
 
 .featured-hero-dot {
-    width: 15px;
-    height: 15px;
+    width: 17px;
+    height: 17px;
     padding: 0;
     border: none;
     border-radius: 50%;
@@ -294,7 +294,7 @@
 
     .featured-hero {
         min-height: 420px;
-        border-radius: 22px;
+        border-radius: 8px;
     }
 
     .featured-hero-content {
@@ -320,7 +320,7 @@
     }
 
     .featured-hero-dot {
-        width: 15px;
-        height: 15px;
+        width: 18px;
+        height: 18px;
     }
 }

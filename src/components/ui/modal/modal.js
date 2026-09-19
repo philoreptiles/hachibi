@@ -13,6 +13,12 @@ import { getEjemplares } from '../../../supabase-config.js';
 let currentList = [];
 let currentIndex = 0;
 let keyListenerBound = false;
+let resizeListenerBound = false;
+
+// Piso de tamaño para la genética -- por debajo de esto ya no se
+// reduce más aunque el texto siga sin caber en 2 renglones (se deja
+// que rompa a una 3ra línea en vez de volverse ilegible).
+const GENETICA_MIN_FONT_PX = 13;
 
 // Lista COMPLETA de ejemplares navegables (Disponible + Apartado, sin
 // filtros de catálogo ni paginación). Se carga una sola vez al abrir
@@ -129,6 +135,26 @@ export function initModalEvents() {
         window.addEventListener('keydown', handleKeyPress);
         keyListenerBound = true;
     }
+
+    if (!resizeListenerBound) {
+        // CAMBIO (genética se ajusta a 2 renglones): al cambiar el
+        // ancho de la ventana (o rotar el celular), el tamaño
+        // "natural" por CSS puede cambiar (móvil vs. el @media de
+        // escritorio) y el ancho disponible para el texto también --
+        // hay que recalcular, no basta con haberlo hecho una sola vez
+        // al abrir. Debounced para no recalcular en cada pixel
+        // mientras se arrastra el borde de la ventana.
+        let resizeTimeoutId = null;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeoutId);
+            resizeTimeoutId = setTimeout(() => {
+                const modal = document.getElementById('modal-overlay');
+                if (!modal || !modal.classList.contains('is-open')) return;
+                ajustarTamanoGenetica(modal.querySelector('.modal-genetics-badge'));
+            }, 150);
+        });
+        resizeListenerBound = true;
+    }
 }
 
 /**
@@ -203,6 +229,41 @@ export function closeModal() {
 
     modalElement.classList.remove('is-open');
     document.body.style.overflow = '';
+}
+
+/**
+ * Reduce el font-size de .modal-genetics-badge (en pasos de 1px) hasta
+ * que su contenido quepa en máximo 2 renglones, partiendo SIEMPRE del
+ * tamaño que le toca por las reglas normales de CSS (1.25rem en móvil,
+ * 2rem en el @media de escritorio) -- nunca se acumula un achicado
+ * sobre un achicado anterior de un render previo.
+ *
+ * CAMBIO: genéticas largas ("ALBINO (KAHL) 50% HET ANERY T1 50% HET
+ * ANERY T2") desbordaban a 3+ renglones con el tamaño fijo. Como el
+ * largo del texto varía por ejemplar y no hay forma de saberlo desde
+ * CSS puro, se mide en JS después de insertar el HTML: se recalcula
+ * el alto máximo de "2 líneas" EN CADA vuelta del bucle (no una sola
+ * vez al inicio) porque line-height es "normal" -- es decir, depende
+ * del font-size actual, y ese también va bajando en cada vuelta.
+ */
+function ajustarTamanoGenetica(el) {
+    if (!el) return;
+
+    el.style.fontSize = '';
+
+    let fontSizePx = parseFloat(window.getComputedStyle(el).fontSize);
+    let intentos = 0;
+
+    while (intentos < 40) {
+        const lineHeightPx = parseFloat(window.getComputedStyle(el).lineHeight) || fontSizePx * 1.15;
+        const maxHeightPx = (lineHeightPx * 4) + 2; // +2px de margen de redondeo
+
+        if (el.scrollHeight <= maxHeightPx || fontSizePx <= GENETICA_MIN_FONT_PX) break;
+
+        fontSizePx -= 1;
+        el.style.fontSize = `${fontSizePx}px`;
+        intentos++;
+    }
 }
 
 /**
@@ -403,6 +464,8 @@ function renderModalContent(ejemplar = {}) {
             ${otrosEjemplaresHTML}
         </div>
     `;
+
+    ajustarTamanoGenetica(content.querySelector('.modal-genetics-badge'));
 
     // Activar Zoom Interactivo (Lupa)
     const zoomWrapper = content.querySelector('#zoom-wrapper');
